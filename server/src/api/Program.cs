@@ -1,8 +1,8 @@
-using api.Config;
-using Api.Config;
 using DotNetEnv;
-using infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using NSwag.AspNetCore;
+using Api;
+using Api.Controllers;
 
 namespace Api;
 
@@ -23,14 +23,44 @@ public static class Program
             .AddJsonFile($"{AppSettingsPath}/appsettings.json", optional: false, reloadOnChange: true)
             .AddJsonFile($"{AppSettingsPath}/appsettings.{builder.Environment.EnvironmentName}.json", optional: true, reloadOnChange: true)
             .AddEnvironmentVariables();
-        
-        var appSettings = AppSettingsFactory.Create(builder.Configuration);
-        var serviceManager = new ServiceManager(builder.Services, appSettings, builder.Environment);
-        serviceManager.ConfigureAndInitializeServices();
-        
+
+        // Register application services
+        builder.Services.AddControllers();
+        builder.Services.AddCors(options =>
+        {
+            options.AddPolicy("AllowFrontend", policy =>
+            {
+                policy
+                    .AllowAnyOrigin()
+                    .AllowAnyMethod()
+                    .AllowAnyHeader();
+            });
+        });
+        builder.Services.AddAuthorization();
+        builder.Services.AddHealthChecks();
+        builder.Services.AddOpenApiDocument();
+
+        // --- Thinger.io ---
+        // Add THINGER_ACCESS_TOKEN and THINGER_USERNAME to your .env file
+        builder.Services.AddSingleton<ThingerBucketController>(sp =>
+        {
+            var config = sp.GetRequiredService<IConfiguration>();
+
+            string token    = config["THINGER_ACCESS_TOKEN"]
+                              ?? throw new InvalidOperationException("Missing env var: THINGER_ACCESS_TOKEN");
+            string username = config["THINGER_USERNAME"]
+                              ?? throw new InvalidOperationException("Missing env var: THINGER_USERNAME");
+
+            // Optional: override base URL for self-hosted instances via THINGER_BASE_URL
+            string baseUrl  = config["THINGER_BASE_URL"] ?? "https://api.thinger.io";
+
+            return new ThingerBucketController(token, username, baseUrl);
+        });
+
         Console.WriteLine("Build complete.");
         return builder.Build();
     }
+
     public static async Task Main(string[] args)
     {
         var app = BuildApp();
@@ -57,9 +87,9 @@ public static class Program
         app.UseAuthorization();
         app.MapControllers();
         app.MapHealthChecks("/health");
-        
+        app.UseOpenApi();
+        app.UseSwaggerUi();
         
         await app.RunAsync();
     }
-    
 }
