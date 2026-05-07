@@ -52,7 +52,7 @@ public static class Program
                               ?? throw new InvalidOperationException("Missing env var: THINGER_USERNAME");
 
             // Optional: override base URL for self-hosted instances via THINGER_BASE_URL
-            string baseUrl  = config["THINGER_BASE_URL"] ?? "https://api.thinger.io";
+            string baseUrl = config["THINGER_BASE_URL"] ?? "https://eu-central.aws.thinger.io";;
 
             return new ThingerBucketController(token, username, baseUrl);
         });

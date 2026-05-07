@@ -20,5 +20,12 @@ public class MoistureController : ControllerBase
         return Ok(data);
     }
     
+    [HttpGet("debug")]
+    public async Task<IActionResult> Debug()
+    {
+        var result = await _thinger.DebugAsync();
+        return Ok(result);
+    }
+    
     
 }

@@ -20,7 +20,7 @@ public class ThingerBucketController : IDisposable
     /// <param name="accessToken">Bearer token from Thinger.io Access Tokens section.</param>
     /// <param name="username">Your Thinger.io username (e.g. "UserName").</param>
     /// <param name="baseUrl">Base URL of your Thinger.io instance. Defaults to the cloud server.</param>
-    public ThingerBucketController(string accessToken, string username, string baseUrl = "https://api.thinger.io")
+    public ThingerBucketController(string accessToken, string username, string baseUrl = "https://eu-central.aws.thinger.io")
     {
         if (string.IsNullOrWhiteSpace(accessToken)) throw new ArgumentNullException(nameof(accessToken));
         if (string.IsNullOrWhiteSpace(username))    throw new ArgumentNullException(nameof(username));
@@ -28,9 +28,9 @@ public class ThingerBucketController : IDisposable
         _username = username;
         _baseUrl  = baseUrl.TrimEnd('/');
 
-        _httpClient = new HttpClient();
+        _httpClient = new HttpClient();  // create ONCE with default handler
         _httpClient.DefaultRequestHeaders.Authorization =
-            new AuthenticationHeaderValue("Bearer", accessToken);
+            new AuthenticationHeaderValue("Bearer", accessToken);  // then set headers
         _httpClient.DefaultRequestHeaders.Accept
             .Add(new MediaTypeWithQualityHeaderValue("application/json"));
     }
@@ -58,7 +58,6 @@ public class ThingerBucketController : IDisposable
         Console.WriteLine("==============================================");
         Console.WriteLine($"[Thinger] GET {url}");
         Console.WriteLine($"[Thinger] Token length: {_httpClient.DefaultRequestHeaders.Authorization?.Parameter?.Length ?? 0}");
-        Console.WriteLine($"[Thinger] Token prefix: {_httpClient.DefaultRequestHeaders.Authorization?.Parameter?[..20]}");
         Console.WriteLine("==============================================");
         
         HttpResponseMessage response = await _httpClient.GetAsync(url);
@@ -78,6 +77,28 @@ public class ThingerBucketController : IDisposable
 
         return result ?? new List<BucketEntry>();
     }
+    
+    public async Task<string> DebugAsync()
+    {
+        var tests = new[]
+        {
+            $"{_baseUrl}/v3/users/{_username}/buckets",
+            $"{_baseUrl}/v1/users/{_username}/buckets",
+            $"{_baseUrl}/v2/users/{_username}/buckets",
+            $"{_baseUrl}/",
+        };
+
+        var sb = new System.Text.StringBuilder();
+        foreach (var url in tests)
+        {
+            Console.WriteLine($"[Thinger Debug] GET {url}");
+            var response = await _httpClient.GetAsync(url);
+            var body = await response.Content.ReadAsStringAsync();
+            Console.WriteLine($"[Thinger Debug] {url} => {(int)response.StatusCode}: {body}");
+            sb.AppendLine($"{url} => {(int)response.StatusCode}: {body}");
+        }
+        return sb.ToString();
+    }
 
     /// <summary>
     /// Convenience overload — returns the most recent <paramref name="maxItems"/> entries.
@@ -91,8 +112,7 @@ public class ThingerBucketController : IDisposable
 
     private string BuildUrl(string bucketId, int maxItems, DateTime? from, DateTime? to)
     {
-        // Base path
-        var url = $"{_baseUrl}/v3/users/{Uri.EscapeDataString(_username)}" +
+        var url = $"{_baseUrl}/v1/users/{Uri.EscapeDataString(_username)}" +
                   $"/buckets/{Uri.EscapeDataString(bucketId)}/data" +
                   $"?items={maxItems}&sort=desc";
 
