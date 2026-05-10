@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using NSwag.AspNetCore;
 using Api;
 using Api.Controllers;
+using Api.Services;
 
 namespace Api;
 
@@ -56,6 +57,8 @@ public static class Program
 
             return new ThingerBucketController(token, username, baseUrl);
         });
+
+        builder.Services.AddSingleton<SensorStateService>();
 
         Console.WriteLine("Build complete.");
         return builder.Build();

@@ -168,6 +168,39 @@ public class BucketEntry
         => Val.TryGetValue(field, out var el) ? el.ToString() : null;
 }
 
+/// <summary>
+/// Simplified moisture reading shape exposed to the frontend.
+/// </summary>
+public class MoistureReadingDto
+{
+    public DateTime Timestamp { get; set; }
+    public double? Percent { get; set; }
+    public string? Raw { get; set; }
+    public Dictionary<string, object?> Values { get; set; } = new();
+
+    public static MoistureReadingDto FromBucketEntry(BucketEntry entry)
+    {
+        return new MoistureReadingDto
+        {
+            Timestamp = entry.Time,
+            Percent = entry.GetDouble("percent") ?? entry.GetDouble("moisture"),
+            Raw = entry.GetString("raw"),
+            Values = entry.Val.ToDictionary(kvp => kvp.Key, kvp => GetElementValue(kvp.Value)),
+        };
+    }
+
+    private static object? GetElementValue(JsonElement element)
+        => element.ValueKind switch
+        {
+            JsonValueKind.String => element.GetString(),
+            JsonValueKind.Number => element.TryGetInt64(out var intValue) ? intValue : element.GetDouble(),
+            JsonValueKind.True => true,
+            JsonValueKind.False => false,
+            JsonValueKind.Null => null,
+            _ => element.ToString(),
+        };
+}
+
 // -------------------------------------------------------------------------
 // Exception
 // -------------------------------------------------------------------------
