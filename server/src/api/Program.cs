@@ -43,7 +43,7 @@ public static class Program
 
         // --- Thinger.io ---
         // Add THINGER_ACCESS_TOKEN and THINGER_USERNAME to your .env file
-        builder.Services.AddSingleton<ThingerBucketController>(sp =>
+        builder.Services.AddSingleton<ThingerBucketService>(sp =>
         {
             var config = sp.GetRequiredService<IConfiguration>();
 
@@ -55,7 +55,7 @@ public static class Program
             // Optional: override base URL for self-hosted instances via THINGER_BASE_URL
             string baseUrl = config["THINGER_BASE_URL"] ?? "https://eu-central.aws.thinger.io";;
 
-            return new ThingerBucketController(token, username, baseUrl);
+            return new ThingerBucketService(token, username, baseUrl);
         });
 
         builder.Services.AddSingleton<SensorStateService>();

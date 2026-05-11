@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using System.Text.Json;
 using Api.Services;
+using Api.Models;
 
 namespace Api.Controllers;
 
@@ -8,10 +9,10 @@ namespace Api.Controllers;
 [Route("api/[controller]")]
 public class MoistureController : ControllerBase
 {
-    private readonly ThingerBucketController _thinger;
+    private readonly ThingerBucketService _thinger;
     private readonly SensorStateService _sensorState;
 
-    public MoistureController(ThingerBucketController thinger, SensorStateService sensorState)
+    public MoistureController(ThingerBucketService thinger, SensorStateService sensorState)
     {
         _thinger = thinger;
         _sensorState = sensorState;

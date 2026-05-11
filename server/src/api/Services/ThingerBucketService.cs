@@ -1,17 +1,14 @@
-﻿namespace Api.Controllers;
-
-using System;
-using System.Collections.Generic;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text.Json;
-using System.Text.Json.Serialization;
-using System.Threading.Tasks;
+using Api.Models;
+
+namespace Api.Services;
 
 /// <summary>
 /// Reads time-series data from a Thinger.io data bucket via the REST API.
 /// </summary>
-public class ThingerBucketController : IDisposable
+public class ThingerBucketService : IDisposable
 {
     private readonly HttpClient _httpClient;
     private readonly string _baseUrl;
@@ -20,7 +17,7 @@ public class ThingerBucketController : IDisposable
     /// <param name="accessToken">Bearer token from Thinger.io Access Tokens section.</param>
     /// <param name="username">Your Thinger.io username (e.g. "UserName").</param>
     /// <param name="baseUrl">Base URL of your Thinger.io instance. Defaults to the cloud server.</param>
-    public ThingerBucketController(string accessToken, string username, string baseUrl = "https://eu-central.aws.thinger.io")
+    public ThingerBucketService(string accessToken, string username, string baseUrl = "https://eu-central.aws.thinger.io")
     {
         if (string.IsNullOrWhiteSpace(accessToken)) throw new ArgumentNullException(nameof(accessToken));
         if (string.IsNullOrWhiteSpace(username))    throw new ArgumentNullException(nameof(username));
@@ -59,7 +56,7 @@ public class ThingerBucketController : IDisposable
         Console.WriteLine($"[Thinger] GET {url}");
         Console.WriteLine($"[Thinger] Token length: {_httpClient.DefaultRequestHeaders.Authorization?.Parameter?.Length ?? 0}");
         Console.WriteLine("==============================================");
-        
+
         HttpResponseMessage response = await _httpClient.GetAsync(url);
 
         if (!response.IsSuccessStatusCode)
@@ -77,7 +74,7 @@ public class ThingerBucketController : IDisposable
 
         return result ?? new List<BucketEntry>();
     }
-    
+
     public async Task<string> DebugAsync()
     {
         var tests = new[]
@@ -132,76 +129,6 @@ public class ThingerBucketController : IDisposable
 }
 
 // -------------------------------------------------------------------------
-// Models
-// -------------------------------------------------------------------------
-
-/// <summary>
-/// Represents a single row returned by the bucket data API.
-/// The <see cref="Val"/> dictionary holds your sensor fields
-/// (e.g. "moisture", "temperature") keyed by field name.
-/// </summary>
-public class BucketEntry
-{
-    /// <summary>Server timestamp in milliseconds since Unix epoch.</summary>
-    [JsonPropertyName("ts")]
-    public long Timestamp { get; set; }
-
-    /// <summary>Timestamp as a UTC DateTime for convenience.</summary>
-    [JsonIgnore]
-    public DateTime Time => DateTimeOffset.FromUnixTimeMilliseconds(Timestamp).UtcDateTime;
-
-    /// <summary>The sensor payload — key/value pairs for each field in the bucket.</summary>
-    [JsonPropertyName("val")]
-    public Dictionary<string, JsonElement> Val { get; set; } = new();
-
-    /// <summary>
-    /// Helper: read a numeric field by name.
-    /// Returns null if the field is missing or not a number.
-    /// </summary>
-    public double? GetDouble(string field)
-        => Val.TryGetValue(field, out var el) && el.ValueKind == JsonValueKind.Number
-            ? el.GetDouble()
-            : null;
-
-    /// <summary>Helper: read a string field by name.</summary>
-    public string? GetString(string field)
-        => Val.TryGetValue(field, out var el) ? el.ToString() : null;
-}
-
-/// <summary>
-/// Simplified moisture reading shape exposed to the frontend.
-/// </summary>
-public class MoistureReadingDto
-{
-    public DateTime Timestamp { get; set; }
-    public double? Percent { get; set; }
-    public string? Raw { get; set; }
-    public Dictionary<string, object?> Values { get; set; } = new();
-
-    public static MoistureReadingDto FromBucketEntry(BucketEntry entry)
-    {
-        return new MoistureReadingDto
-        {
-            Timestamp = entry.Time,
-            Percent = entry.GetDouble("percent") ?? entry.GetDouble("moisture"),
-            Raw = entry.GetString("raw"),
-            Values = entry.Val.ToDictionary(kvp => kvp.Key, kvp => GetElementValue(kvp.Value)),
-        };
-    }
-
-    private static object? GetElementValue(JsonElement element)
-        => element.ValueKind switch
-        {
-            JsonValueKind.String => element.GetString(),
-            JsonValueKind.Number => element.TryGetInt64(out var intValue) ? intValue : element.GetDouble(),
-            JsonValueKind.True => true,
-            JsonValueKind.False => false,
-            JsonValueKind.Null => null,
-            _ => element.ToString(),
-        };
-}
-
-// -------------------------------------------------------------------------
 // Exception
 // -------------------------------------------------------------------------
 
@@ -212,28 +139,3 @@ public class ThingerApiException : Exception
     public ThingerApiException(int statusCode, string message)
         : base(message) => StatusCode = statusCode;
 }
-
-// -------------------------------------------------------------------------
-// Usage example (remove or move to your Program.cs / controller action)
-// -------------------------------------------------------------------------
-
-// var controller = new ThingerBucketController(
-//     accessToken: "YOUR_BEARER_TOKEN",
-//     username:    "Asparrow"
-// );
-//
-// // Get the 50 most recent entries
-// var entries = await controller.GetLatestAsync("moisture-data-bucket-id", maxItems: 50);
-//
-// foreach (var entry in entries)
-// {
-//     double? moisture = entry.GetDouble("moisture");
-//     Console.WriteLine($"{entry.Time:u}  moisture={moisture}");
-// }
-//
-// // Get entries from the last 24 hours
-// var recent = await controller.GetBucketDataAsync(
-//     "moisture-data-bucket-id",
-//     maxItems: 500,
-//     from: DateTime.UtcNow.AddHours(-24)
-// );
