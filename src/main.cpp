@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include <Wire.h>
 #include <WiFi.h>
 
 #include <ThingerESP32.h>
@@ -46,6 +47,26 @@ static void connectToWiFi() {
   Serial.println(WiFi.localIP());
 }
 
+static void scanI2CBus() {
+  Wire.begin(DISPLAY_I2C_SDA_PIN, DISPLAY_I2C_SCL_PIN);
+  Serial.println("Scanning I2C bus...");
+
+  bool found = false;
+  for (uint8_t addr = 1; addr < 127; ++addr) {
+    Wire.beginTransmission(addr);
+    uint8_t error = Wire.endTransmission();
+    if (error == 0) {
+      Serial.printf("I2C device found at 0x%02X\n", addr);
+      found = true;
+    }
+  }
+
+  if (!found) {
+    Serial.println("No I2C devices found.");
+  }
+  Serial.println("I2C scan complete.");
+}
+
 static void syncLocalTime() {
   Serial.println("Starting NTP time sync...");
   TimeUtils::getInstance()->begin(TZ_INFO);
@@ -65,6 +86,8 @@ static void syncLocalTime() {
 void setup() {
   Serial.begin(115200);
   delay(1000);
+
+  scanI2CBus();
 
   moistureController.begin();
   displayController.begin();
